@@ -1,9 +1,9 @@
 import time
 import math
-from robot import IMU
+from imu import IMU
 
 imu = IMU()
-#imu.calibrate()
+imu.calibrate()
 imu.start()
 
 try:
