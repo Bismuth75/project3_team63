@@ -1,59 +1,143 @@
 import time
 import math
+import threading
 import constants as c
+from buildhat import Motor
+from grove.gpio import GPIO
+from grove.grove_imu_9dof_icm20600_ak09918 import GroveIMU9DOFICM20600
 
+
+#hardware init
+motor_L = Motor('A')
+motor_R = Motor('B')
+motor_L.set_speed_unit_rpm(True)
+motor_R.set_speed_unit_rpm(True)
+
+line_R = GPIO(c.LINE_R_PORT, GPIO.IN)
+line_L = GPIO(c.LINE_L_PORT, GPIO.IN)
+
+#global fx
 def wrap(angle):
     return (angle + math.pi) % (2 * math.pi) - math.pi
 
 def clamp(value, minimum, maximum):
     return max(minimum, min(value, maximum))
 
-def get_heading():
-    #convert from IMU standard to CW+ and return in radians
-    pass
-
 def get_encoder_R():
-    #return encoder value in radians
-    pass
+    return c.R_DIR * motor_R.get_position()
 
 def get_encoder_L():
-    #return encoder value in radians
-    pass
+    return c.L_DIR * motor_L.get_position()
 
 def get_line_R():
-    #true if on line
-    pass
+    return bool(line_R.value)  
 
 def get_line_L():
-    #true if on line
-    pass
+    return bool(line_L.value) 
 
-go = True
+#classes
+class IMU:
+    def __init__(self, hz=200):
+        self.imu = GroveIMU9DOFICM20600()
+        self.period = 1.0 / hz
+        self.bias_X = 0.0
+        self.bias_Y = 0.0
+        self.bias_Z = 0.0
+        self.heading = 0.0
+        self.rates = (0.0, 0.0, 0.0)
+        self.lock = threading.Lock()
+        self.running = False
+        
+    def stop(self):
+        self.running = False
+        
+    def calibrate(self):
+        self.calibrate_x()
+        self.calibrate_y()
+        self.calibrate_z()
+    
+    def calibrate_x(self, seconds=3.0):
+        samples = []
+        t_end = time.monotonic() + seconds
+        while time.monotonic() < t_end:
+            samples.append(self.imu.get_gyro()[0])
+            time.sleep(0.005)
+        self.bias_X = sum(samples) / len(samples)
+        
+    def calibrate_y(self, seconds=3.0):
+        samples = []
+        t_end = time.monotonic() + seconds
+        while time.monotonic() < t_end:
+            samples.append(self.imu.get_gyro()[1])
+            time.sleep(0.005)
+        self.bias_Y = sum(samples) / len(samples)
+    
+    def calibrate_z(self, seconds=3.0):
+        samples = []
+        t_end = time.monotonic() + seconds
+        while time.monotonic() < t_end:
+            samples.append(self.imu.get_gyro()[2])
+            time.sleep(0.005)
+        self.bias_Z = sum(samples) / len(samples)
+        
+    def start(self):
+        self.running = True
+        threading.Thread(target=self.loop, daemon=True).start()
 
-while go:
-    pass
+    def loop(self):
+        last = time.monotonic()
+        while self.running:
+            gx, gy, gz = self.imu.get_gyro()
+            ax, ay, az = self.imu.get_accel()
+            gx -= self.bias_X
+            gy -= self.bias_Y
+            gz -= self.bias_Z
+            now = time.monotonic()
+            dt = now - last
+            last = now
+            with self.lock:
+                self.heading -= math.radians(gz) * dt
+                self.rates = (gx, gy, gz)
+            time.sleep(self.period)
+    
+    def get_heading(self):
+        with self.lock:
+            return wrap(self.heading)
+        
+    def get_rates(self):
+        with self.lock:
+            return self.rates     
 
 class Drive:
     def __init__(self):
-        self.vL_target = 0.0
-        self.vR_target = 0.0
+        self.last_R = None
+        self.last_L = None
     
     def update(self):
-        #update wheel power states
         pass
     
     def set_velocity(self, v, omega):
-        self.vL_target = v + omega * c.TRACK_WIDTH / 2
-        self.vR_target = v - omega * c.TRACK_WIDTH / 2
+        vL = v + omega * c.TRACK_WIDTH / 2
+        vR = v - omega * c.TRACK_WIDTH / 2
+        sL = round(clamp(c.LEFT_DIR * vL * c.RPM_TO_RADS, -100, 100))
+        sR = round(clamp(c.RIGHT_DIR * vR / c.RPM_TO_RADS, -100, 100))
+        if sL != self.last_L:
+            motor_L.start(sL)
+            self.last_L = sL
+        if sR != self.last_R:
+            motor_R.start(sR)
+            self.last_R = sR
     
     def stop(self):
-        self.set_velocity(0, 0)
-        self.update()
+        motor_L.stop()
+        motor_R.stop()
+        self.last_L = None
+        self.last_R = None
     
     def turn_to(self, target, error_margin=math.radians(1), timeout=3):
         t0 = time.monotonic()
         while time.monotonic() - t0 < timeout:
-            err = wrap(target - get_heading())
+            err = wrap(target - IMU.get_heading())
             if abs(err) < error_margin:
                 self.stop()
                 return True
@@ -65,14 +149,14 @@ class Drive:
         return False
         
     def turn_by(self, turn_amount, **kw):
-        return self.turn_to(wrap(get_heading() + turn_amount), **kw)
+        return self.turn_to(wrap(IMU.get_heading() + turn_amount), **kw)
         
     def drive_distance(self, dist, v_target, hold_heading, error_margin=0.1, timeout=10):
         t0 = time.monotonic()
         start_R = get_encoder_R()
         start_L = get_encoder_L()
         while time.monotonic() - t0 < timeout:
-            angle_err = wrap(hold_heading - get_heading())
+            angle_err = wrap(hold_heading - IMU.IMU.get_heading())
             traveled = ((get_encoder_R() - start_R) + (get_encoder_L() - start_L)) * c.WHEEL_RADIUS / 2
             distance_err = dist - traveled
             if abs(distance_err) < error_margin:
@@ -81,8 +165,7 @@ class Drive:
             v = clamp(c.P_STRAIGHT * distance_err, -v_target, v_target) #keeps target v in range
             v = math.copysign(max(c.V_MIN, abs(v)), distance_err) #prevents |v| from going under min movement speed
             self.set_velocity(v, clamp(c.P_TURN * angle_err, -c.OMEGA_MAX, c.OMEGA_MAX))
-            self.update()
-        self.stop()
+            self.stop()
         return False
 
 class Line_Nav:
@@ -96,11 +179,11 @@ class Line_Nav:
         #finds horizontal and angular displacement relative to a piece of line
         if get_line_R() or get_line_L():
             return False #sensor started on line
-        h0 = get_heading()
+        h0 = IMU.get_heading()
         angle_R = None
         angle_L = None
         while angle_R is None or angle_L is None:
-            turned = wrap(get_heading() - h0)
+            turned = wrap(IMU.get_heading() - h0)
             if abs(turned) > c.MAX_SCAN_ANGLE:
                 self.drive.stop()
                 return False
@@ -109,7 +192,7 @@ class Line_Nav:
             if angle_L is None and get_line_L():
                 angle_L = turned
             self.drive.set_velocity(0, c.OMEGA_LINE_SCAN)
-            self.drive.update()
+            time.sleep(c.LOOP_SLEEP)
         self.drive.stop()
 
         S = angle_R + angle_L
@@ -129,12 +212,12 @@ class Line_Nav:
         on_L = get_line_L()
         if on_R or on_L:
             return False
-        h0 = get_heading()
+        h0 = IMU.get_heading()
         R_in = R_out = L_in = L_out = None
         prev_R = on_R
         prev_L = on_L
         while L_out is None or R_out is None:
-            turned = wrap(get_heading() - h0)     # CW+
+            turned = wrap(IMU.get_heading() - h0)     # CW+
             if abs(turned) > c.MAX_SCAN_ANGLE:
                 self.drive.stop()
                 return False
@@ -152,7 +235,7 @@ class Line_Nav:
             
             prev_R, prev_L = on_R, on_L
             self.drive.set_velocity(0, c.OMEGA_LINE_SCAN)
-            self.drive.update()
+            time.sleep(c.LOOP_SLEEP)
         self.drive.stop()
         
         a1 = math.pi / 2 - (R_in + L_out) / 2     #right edge
@@ -195,4 +278,6 @@ class Line_Nav:
         else:
             omega = 0
         self.drive.set_velocity(v, omega)
-        self.drive.update()
+
+if __name__ == "__main__":
+    pass
