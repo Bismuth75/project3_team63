@@ -2,6 +2,7 @@ import time
 import math
 import constants as c
 from utils import wrap, clamp
+from imu import IMU
 from buildhat import Motor
 from grove.gpio import GPIO
 
