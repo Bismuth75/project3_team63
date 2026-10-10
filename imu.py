@@ -22,34 +22,18 @@ class IMU:
     def stop(self):
         self.running = False
         
-    def calibrate(self, tx=3.0, ty=3.0, tz=3.0):
-        self.calibrate_x(tx)
-        self.calibrate_y(ty)
-        self.calibrate_z(tz)
-    
-    def calibrate_x(self, seconds):
-        samples = []
+    def calibrate(self, seconds=3):
+        sums = [0,0,0]
+        n = 0
         t_end = time.monotonic() + seconds
         while time.monotonic() < t_end:
-            samples.append(self.imu.get_gyro()[0])
+            gx, gy, gz = self.imu.get_gyro()
+            sums[0] += gx
+            sums[1] += gy
+            sums[2] += gz
+            n += 1
             time.sleep(0.005)
-        self.bias_X = sum(samples) / len(samples)
-        
-    def calibrate_y(self, seconds):
-        samples = []
-        t_end = time.monotonic() + seconds
-        while time.monotonic() < t_end:
-            samples.append(self.imu.get_gyro()[1])
-            time.sleep(0.005)
-        self.bias_Y = sum(samples) / len(samples)
-    
-    def calibrate_z(self, seconds):
-        samples = []
-        t_end = time.monotonic() + seconds
-        while time.monotonic() < t_end:
-            samples.append(self.imu.get_gyro()[2])
-            time.sleep(0.005)
-        self.bias_Z = sum(samples) / len(samples)
+            self.bias_X, self.bias_Y, self.bias_Z = (s/n for s in sums)
         
     def start(self):
         self.running = True
@@ -110,3 +94,19 @@ class ICM20600:
 
     def get_accel(self):
         return tuple(v / 16384 * 1000 for v in self._read3(0x3B))   # mg
+    
+if __name__ == "__main__":
+    imu = IMU()
+    imu.calibrate()
+    imu.start()
+
+    try:
+        while True:
+            x, y, z = imu.get_rates()
+            heading = math.degrees(imu.get_heading())
+            print(f"X: {x:7.2f}  Y: {y:7.2f}  Z: {z:7.2f} deg/s   Heading: {heading:7.2f} deg")
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        print("terminated")
+    finally:
+        imu.running = False

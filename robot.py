@@ -1,8 +1,10 @@
 import time
 import math
 import constants as c
+from collections import deque
 from utils import wrap, clamp
 from imu import IMU
+from ultrasonic import Ultrasonic
 from buildhat import Motor
 from grove.gpio import GPIO
 
@@ -201,5 +203,48 @@ class Line_Nav:
             omega = 0
         self.drive.set_velocity(v, omega)
 
+class Obstacle:
+    def __init__(self, drive, ultra):
+        self.drive = drive
+        self.ultra = ultra
+        self.history = deque(maxlen=c.OBSTACLE_EVENT_STRICTNESS)
+        
+    def obstacle_detect(self):
+        dist = self.ultra.get_distance()
+        if dist is not None:
+            self.history.append(dist < c.OBSTACLE_THRESHOLD)
+        return len(self.history) == c.OBSTACLE_EVENT_STRICTNESS and all(self.history)
+    
+    
+
 if __name__ == "__main__":
-    pass
+    imu = IMU()
+    imu.calibrate()
+    imu.start()
+
+    ultra = Ultrasonic()
+
+    drive = Drive()
+    nav = Line_Nav(drive)
+    obstacle = Obstacle(drive, ultra)
+    state = "start"
+    try:
+        while state != "end":
+            if state == "start":
+                #idk maybe something here
+                state = "localize"
+            elif state == "localize":
+                state = "center" if nav.localize_advanced() else "x"
+            elif state == "center":
+                state = "follow" if nav.line_center() else "x"
+            elif state == "follow":
+                nav.primitive_line_follow(c.V_MAX)
+                if obstacle.obstacle_detect() and state != "obstacle":
+                    state = "obstacle"
+            elif state == "obstacle":
+                pass
+            
+    finally:
+        drive.stop()
+        imu.stop()
+                
