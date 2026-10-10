@@ -19,9 +19,14 @@ OMEGA_LINE_SCAN = 0.5
 MAX_SCAN_ANGLE = math.radians(160)
 MAX_HEADING_DISAGREEMENT = math.radians(3) #maybe?
 
-#sensors
+#sensor ports
 LINE_R_PORT = 1
 LINE_L_PORT = 2
+ULTRASONIC_PORT = 5
+
+#sensor constants
+OBSTACLE_THRESHOLD = 16 #cm
+OBSTACLE_EVENT_STRICTNESS = 10 #number of "True" readings until considered positive detection
 
 
 #base movment parameters
