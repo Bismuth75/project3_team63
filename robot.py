@@ -5,6 +5,7 @@ from collections import deque
 from utils import wrap, clamp
 from imu import IMU
 from ultrasonic import Ultrasonic
+from line_finder import Line as l
 from buildhat import Motor
 from grove.gpio import GPIO
 
@@ -25,11 +26,11 @@ def get_encoder_R():
 def get_encoder_L():
     return c.L_DIR * motor_L.get_position()
 
-def get_line_R():
-    return bool(line_R.value)  
+# def get_line_R():
+#     return bool(line_R.value)  
 
-def get_line_L():
-    return bool(line_L.value) 
+# def get_line_L():
+#     return bool(line_L.value) 
 
 #classes   
 class Drive:
@@ -101,7 +102,7 @@ class Line_Nav:
 
     def localize(self):
         #finds horizontal and angular displacement relative to a piece of line
-        if get_line_R() or get_line_L():
+        if l.get_line_R() or l.get_line_L():
             return False #sensor started on line
         h0 = IMU.get_heading()
         angle_R = None
@@ -111,9 +112,9 @@ class Line_Nav:
             if abs(turned) > c.MAX_SCAN_ANGLE:
                 self.drive.stop()
                 return False
-            if angle_R is None and get_line_R():
+            if angle_R is None and l.get_line_R():
                 angle_R = turned
-            if angle_L is None and get_line_L():
+            if angle_L is None and l.get_line_L():
                 angle_L = turned
             self.drive.set_velocity(0, c.OMEGA_LINE_SCAN)
             time.sleep(c.LOOP_SLEEP)
@@ -132,8 +133,8 @@ class Line_Nav:
         return True
     
     def localize_advanced(self):
-        on_R = get_line_R()
-        on_L = get_line_L()
+        on_R = l.get_line_R()
+        on_L = l.get_line_L()
         if on_R or on_L:
             return False
         h0 = IMU.get_heading()
@@ -145,8 +146,8 @@ class Line_Nav:
             if abs(turned) > c.MAX_SCAN_ANGLE:
                 self.drive.stop()
                 return False
-            on_R = get_line_R()
-            on_L = get_line_L()
+            on_R = l.get_line_R()
+            on_L = l.get_line_L()
             
             if R_in is None and on_R and not prev_R:
                 R_in = turned
@@ -193,8 +194,8 @@ class Line_Nav:
         return self.drive.turn_to(self.line_zero_heading)
     
     def primitve_line_follow(self, v):
-        on_R = get_line_R()
-        on_L = get_line_L()
+        on_R = l.get_line_R()
+        on_L = l.get_line_L()
         if on_R and not on_L:
             omega = c.OMEGA_FOLLOW
         elif on_L and not on_R:

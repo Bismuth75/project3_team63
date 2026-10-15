@@ -13,8 +13,11 @@ class Ultrasonic:
 #testing
 if __name__ == "__main__":
     sensor = Ultrasonic()
-    while True:
-        print(sensor.obstacle_detect())
-        time.sleep(0.1)
+    try:
+        while True:
+            print(sensor.obstacle_detect())
+            time.sleep(0.1)
+    except:
+        print("terminated")
 
 
