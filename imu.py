@@ -33,7 +33,7 @@ class IMU:
             sums[2] += gz
             n += 1
             time.sleep(0.005)
-            self.bias_X, self.bias_Y, self.bias_Z = (s/n for s in sums)
+        self.bias_X, self.bias_Y, self.bias_Z = (s/n for s in sums)
         
     def start(self):
         self.running = True

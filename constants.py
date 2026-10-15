@@ -3,13 +3,14 @@ import math
 LOOP_SLEEP = 0.01
 
 #physical constants
-TRACK_WIDTH = 10
+TRACK_RADIUS = 10
 WHEEL_RADIUS = 4
 SENSOR_RADIUS = 4
 LINE_HALF_WIDTH = 1.27
 L_DIR = -1
 R_DIR = 1
 RPM_TO_RADS = math.pi / 30
+MAX_RPM = 100
 
 #localization parameters
 LINE_CENTER_THRESHOLD = 0.2
@@ -22,11 +23,15 @@ MAX_HEADING_DISAGREEMENT = math.radians(3) #maybe?
 #sensor ports
 LINE_R_PORT = 1
 LINE_L_PORT = 2
+LINE_M_PORT = 3
 ULTRASONIC_PORT = 5
+HALL_PORT = 22
+BUTTON_PORT = 23
 
 #sensor constants
 OBSTACLE_THRESHOLD = 16 #cm
 OBSTACLE_EVENT_STRICTNESS = 10 #number of "True" readings until considered positive detection
+HALL_THRESHOLD = 5 #magnetic field strength
 
 
 #base movment parameters

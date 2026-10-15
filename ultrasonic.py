@@ -15,9 +15,9 @@ if __name__ == "__main__":
     sensor = Ultrasonic()
     try:
         while True:
-            print(sensor.obstacle_detect())
+            print(sensor.get_distance())
             time.sleep(0.1)
-    except:
+    except KeyboardInterrupt:
         print("terminated")
 
 
