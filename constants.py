@@ -20,6 +20,9 @@ OMEGA_LINE_SCAN = 0.5
 MAX_SCAN_ANGLE = math.radians(160)
 MAX_HEADING_DISAGREEMENT = math.radians(3) #maybe?
 
+#homing parameters
+HOMING_V = 3
+
 #sensor ports
 LINE_R_PORT = 1
 LINE_L_PORT = 2

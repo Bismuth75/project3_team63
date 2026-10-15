@@ -7,7 +7,9 @@ class Hall:
         self.hall = DigitalInputDevice(c.HALL_PORT)
         
     def get_hall(self):
-        return not self.hall.value
+        if self.hall.value != None:
+            return not self.hall.value
+        return False
     
 if __name__ == "__main__":
     sensor = Hall()

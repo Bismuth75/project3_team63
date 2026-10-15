@@ -29,6 +29,7 @@ def get_encoder_L():
 #classes   
 class Drive:
     def __init__(self, imu):
+        self.imu = imu
         self.last_R = None
         self.last_L = None
     
@@ -57,7 +58,7 @@ class Drive:
     def turn_to(self, target, error_margin=math.radians(1), timeout=3):
         t0 = time.monotonic()
         while time.monotonic() - t0 < timeout:
-            err = wrap(target - self.IMU.get_heading())
+            err = wrap(target - self.imu.get_heading())
             if abs(err) < error_margin:
                 self.stop()
                 return True
@@ -69,14 +70,14 @@ class Drive:
         return False
         
     def turn_by(self, turn_amount, **kw):
-        return self.turn_to(wrap(self.IMU.get_heading() + turn_amount), **kw)
+        return self.turn_to(wrap(self.imu.get_heading() + turn_amount), **kw)
         
     def drive_distance(self, dist, v_target, hold_heading, error_margin=0.1, timeout=10):
         t0 = time.monotonic()
         start_R = get_encoder_R()
         start_L = get_encoder_L()
         while time.monotonic() - t0 < timeout:
-            angle_err = wrap(hold_heading - self.IMU.get_heading())
+            angle_err = wrap(hold_heading - self.imu.get_heading())
             traveled = ((get_encoder_R() - start_R) + (get_encoder_L() - start_L)) * c.WHEEL_RADIUS / 2
             distance_err = dist - traveled
             if abs(distance_err) < error_margin:
@@ -88,10 +89,15 @@ class Drive:
             time.sleep(c.LOOP_SLEEP)
         self.stop()
         return False
+    
+    def driv_indefinite(self, v_target, hold_heading):
+        pass
 
 class Line_Nav:
     def __init__(self, drive, imu, line):
         self.drive = drive
+        self.imu = imu
+        self.line = line
         self.line_zero_heading = None
         self.x0 = None
         self.measured_width = None
@@ -100,11 +106,11 @@ class Line_Nav:
         #finds horizontal and angular displacement relative to a piece of line
         if self.line.get_line_R() or self.line.get_line_L():
             return False #sensor started on line
-        h0 = self.IMU.get_heading()
+        h0 = self.imu.get_heading()
         angle_R = None
         angle_L = None
         while angle_R is None or angle_L is None:
-            turned = wrap(self.IMU.get_heading() - h0)
+            turned = wrap(self.imu.get_heading() - h0)
             if abs(turned) > c.MAX_SCAN_ANGLE:
                 self.drive.stop()
                 return False
@@ -129,21 +135,21 @@ class Line_Nav:
         return True
     
     def localize_advanced(self):
-        on_R = line.get_line_R()
-        on_L = line.get_line_L()
+        on_R = self.line.get_line_R()
+        on_L = self.line.get_line_L()
         if on_R or on_L:
             return False
-        h0 = self.IMU.get_heading()
+        h0 = self.imu.get_heading()
         R_in = R_out = L_in = L_out = None
         prev_R = on_R
         prev_L = on_L
         while L_out is None or R_out is None:
-            turned = wrap(self.IMU.get_heading() - h0)     # CW+
+            turned = wrap(self.imu.get_heading() - h0)     # CW+
             if abs(turned) > c.MAX_SCAN_ANGLE:
                 self.drive.stop()
                 return False
-            on_R = line.get_line_R()
-            on_L = line.get_line_L()
+            on_R = self.line.get_line_R()
+            on_L = self.line.get_line_L()
             
             if R_in is None and on_R and not prev_R:
                 R_in = turned
@@ -190,8 +196,8 @@ class Line_Nav:
         return self.drive.turn_to(self.line_zero_heading)
     
     def primitive_line_follow(self, v):
-        on_R = line.get_line_R()
-        on_L = line.get_line_L()
+        on_R = self.line.get_line_R()
+        on_L = self.line.get_line_L()
         if on_R and not on_L:
             omega = c.OMEGA_FOLLOW
         elif on_L and not on_R:
@@ -212,6 +218,19 @@ class Obstacle:
             self.history.append(dist < c.OBSTACLE_THRESHOLD)
         return len(self.history) == c.OBSTACLE_EVENT_STRICTNESS and all(self.history)
     
+class Cargo:
+    def __init__(self, drive, hall, imu):
+        self.drive = drive
+        self.hall = hall
+        self.imu = imu
+        self.cargo = []
+        
+    def homing(self):
+        heading_hold = self.imu.get_heading()
+        while not self.hall.get_hall():
+            self.drive.set_velocity(c.HOMING_V)
+            
+        
     
 
 if __name__ == "__main__":
