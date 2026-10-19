@@ -12,3 +12,11 @@ class Switch:
 
     def get_button(self):
         return self.button.is_pressed
+
+if __name__ == "__main__":
+    switch = Switch()
+    while True:
+        try:
+            print(switch.get_button())
+        except KeyboardInterrupt:
+            print("terminated")

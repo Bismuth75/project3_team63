@@ -2,96 +2,16 @@ import time
 import math
 import constants as c
 from collections import deque
-from utils import wrap, clamp
-from imu import IMU
-from ultrasonic import Ultrasonic
-from line_finder import Line
-from hall_sensor import Hall
-from button import Switch
-from buildhat import Motor
+from utils import wrap#, clamp
+from hardware.imu import IMU
+from hardware.ultrasonic import Ultrasonic
+from hardware.line_finder import Line
+from hardware.hall_sensor import Hall
+from hardware.button import Switch
+from hardware.motors import Motors
+from drive import Drive
 
-
-#hardware init
-motor_L = Motor('A')
-motor_R = Motor('B')
-motor_L.set_speed_unit_rpm(True)
-motor_R.set_speed_unit_rpm(True)
-
-
-
-#global fx
-def get_encoder_R():
-    return c.R_DIR * math.radians(motor_R.get_position())
-
-def get_encoder_L():
-    return c.L_DIR * math.radians(motor_L.get_position())
-
-#classes   
-class Drive:
-    def __init__(self, imu):
-        self.imu = imu
-        self.last_R = None
-        self.last_L = None
-    
-    def set_velocity(self, v, omega):
-        vL = v + omega * c.TRACK_RADIUS
-        vR = v - omega * c.TRACK_RADIUS
-        sL = round(clamp(c.L_DIR * vL / c.WHEEL_RADIUS / c.RPM_TO_RADS, -c.MAX_RPM, c.MAX_RPM),1)
-        sR = round(clamp(c.R_DIR * vR / c.WHEEL_RADIUS / c.RPM_TO_RADS, -c.MAX_RPM, c.MAX_RPM),1)
-        if sL != self.last_L:
-            motor_L.start(sL)
-            self.last_L = sL
-        if sR != self.last_R:
-            motor_R.start(sR)
-            self.last_R = sR
-    
-    def stop(self):
-        motor_L.start(0)
-        motor_R.start(0)
-        self.last_L = 0
-        self.last_R = 0
-        
-    def release(self):
-        motor_L.stop()
-        motor_R.stop()
-    
-    def turn_to(self, target, error_margin=math.radians(1), timeout=3):
-        t0 = time.monotonic()
-        while time.monotonic() - t0 < timeout:
-            err = wrap(target - self.imu.get_heading())
-            if abs(err) < error_margin:
-                self.stop()
-                return True
-            w = clamp(c.P_TURN * err, -c.OMEGA_MAX, c.OMEGA_MAX) #keeps target omega in range
-            w = math.copysign(max(c.OMEGA_MIN, abs(w)), err) #prevents |omega| from going under min movement speed
-            self.set_velocity(0, w)
-            time.sleep(c.LOOP_SLEEP)
-        self.stop()
-        return False
-        
-    def turn_by(self, turn_amount, **kw):
-        return self.turn_to(wrap(self.imu.get_heading() + turn_amount), **kw)
-        
-    def drive_distance(self, dist, v_target, hold_heading, error_margin=0.1, timeout=10):
-        t0 = time.monotonic()
-        start_R = get_encoder_R()
-        start_L = get_encoder_L()
-        while time.monotonic() - t0 < timeout:
-            angle_err = wrap(hold_heading - self.imu.get_heading())
-            traveled = ((get_encoder_R() - start_R) + (get_encoder_L() - start_L)) * c.WHEEL_RADIUS / 2
-            distance_err = dist - traveled
-            if abs(distance_err) < error_margin:
-                self.stop()
-                return True
-            v = clamp(c.P_STRAIGHT * distance_err, -v_target, v_target) #keeps target v in range
-            v = math.copysign(max(c.V_MIN, abs(v)), distance_err) #prevents |v| from going under min movement speed
-            self.set_velocity(v, clamp(c.P_TURN * angle_err, -c.OMEGA_MAX, c.OMEGA_MAX))
-            time.sleep(c.LOOP_SLEEP)
-        self.stop()
-        return False
-    
-    def driv_indefinite(self, v_target, hold_heading):
-        pass
+#classes
 
 class Line_Nav:
     def __init__(self, drive, imu, line):
@@ -243,8 +163,9 @@ if __name__ == "__main__":
     ultra = Ultrasonic()
     hall = Hall()
     button = Switch()
+    motors = Motors()
     
-    drive = Drive(imu)
+    drive = Drive(imu, motors)
     nav = Line_Nav(drive, imu, line)
     obstacle = Obstacle(drive, ultra)
     

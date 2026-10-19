@@ -10,6 +10,7 @@ LINE_HALF_WIDTH = 1.27
 L_DIR = -1
 R_DIR = 1
 RPM_TO_RADS = math.pi / 30
+RADS_TO_RPM = 30 / math.pi
 MAX_RPM = 100
 
 #localization parameters
@@ -47,3 +48,4 @@ V_MIN = 0.1 #cm/s
 #PID
 P_TURN = 4
 P_STRAIGHT = 1.5
+P_HEADING = 1.5
