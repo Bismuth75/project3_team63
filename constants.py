@@ -1,6 +1,7 @@
 import math
 
 LOOP_SLEEP = 0.01
+BRAKE_TIME = 0.15
 
 #physical constants
 TRACK_RADIUS = 10
@@ -30,7 +31,7 @@ LINE_L_PORT = 2
 LINE_M_PORT = 3
 ULTRASONIC_PORT = 5
 HALL_PORT = 22
-BUTTON_PORT = 23
+BUTTON_PORT = 5
 
 #sensor constants
 OBSTACLE_THRESHOLD = 16 #cm
@@ -40,12 +41,12 @@ HALL_THRESHOLD = 5 #magnetic field strength
 
 #base movment parameters
 OMEGA_MAX = 4 #rad/s
-OMEGA_MIN = 0.2 #rad/s
+OMEGA_MIN = 0.1 #rad/s
 OMEGA_FOLLOW = 2
 V_MAX = 15 #cm/s
 V_MIN = 0.1 #cm/s
 
 #PID
-P_TURN = 4
+P_TURN = 2
 P_STRAIGHT = 1.5
-P_HEADING = 1.5
+P_HEADING = 5 #tuned?

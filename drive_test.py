@@ -14,7 +14,7 @@ def straight_drive(drive, imu, button, v): #use to tune P_HEADING
         hold_heading = imu.get_heading()
         while button.on:
             angle_err = wrap(hold_heading - imu.get_heading())
-            omega = clamp(c.P_TURN * angle_err, -c.OMEGA_MAX, c.OMEGA_MAX)
+            omega = clamp(c.P_HEADING * angle_err, -c.OMEGA_MAX, c.OMEGA_MAX)
             drive.set_velocity(v, omega)
             time.sleep(c.LOOP_SLEEP)
         drive.stop()
@@ -43,8 +43,8 @@ if __name__ == "__main__":
     button = Switch()
     
     try:
-        straight_drive(drive, imu, button, 5)
-        #turn_test(drive, button, 90, 3)
+        #straight_drive(drive, imu, button, 15)
+        turn_test(drive, button, 90, 3)
         #distance_test(drive, imu, button, 20, 5)
     except KeyboardInterrupt:
         print("terminated")

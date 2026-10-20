@@ -34,6 +34,7 @@ class IMU:
             n += 1
             time.sleep(0.005)
         self.bias_X, self.bias_Y, self.bias_Z = (s/n for s in sums)
+        print("calibrated")
         
     def start(self):
         self.running = True

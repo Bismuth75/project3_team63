@@ -1,14 +1,15 @@
 import constants as c
 from utils import clamp
 import math
+import time
 from buildhat import Motor
 
 class Motors:
     def __init__(self):
         self.motor_L = Motor('A')
         self.motor_R = Motor('B')
-        self.motor_L.set_speed_unit_rpm(True)
-        self.motor_R.set_speed_unit_rpm(True)
+        #self.motor_L.set_speed_unit_rpm(True)
+        #self.motor_R.set_speed_unit_rpm(True)
         self.last_L = None
         self.last_R = None
     
@@ -23,7 +24,10 @@ class Motors:
             self.last_R = sR
     
     def hold(self):
-        self.set_rpm(0, 0)
+        self.motor_L.start(0)
+        self.motor_R.start(0)
+        time.sleep(c.BRAKE_TIME)
+        self.release()
         
     def release(self):
         self.motor_L.stop()
