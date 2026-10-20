@@ -7,7 +7,7 @@ class Drive:
     def __init__(self, imu, motors):
         self.imu = imu
         self.m = motors
-        self.driving = False
+        self.hold_heading = False
 
     def set_velocity(self, v, omega):
         vL = v + omega * c.TRACK_RADIUS
@@ -17,9 +17,11 @@ class Drive:
 
     def stop(self):
         self.m.hold()
+        self.hold_heading = None
 
     def release(self):
         self.m.release()
+        self.hold_heading = None
     
     def turn_to(self, target, error_margin=math.radians(1), timeout=3):
         t0 = time.monotonic()
@@ -56,10 +58,10 @@ class Drive:
         self.stop()
         return False
     
+
     def drive_straight(self, v):
-        if not self.driving:
-            hold_heading = self.imu.get_heading()
-        self.driving = True
-        angle_err = wrap(hold_heading - self.imu.get_heading())
-        omega = clamp(c.P_TURN * angle_err, -c.OMEGA_MAX, c.OMEGA_MAX)
+        if self.hold_heading is None:
+            self.hold_heading = self.imu.get_heading()
+        angle_err = wrap(self.hold_heading - self.imu.get_heading())
+        omega = clamp(c.P_HEADING * angle_err, -c.OMEGA_MAX, c.OMEGA_MAX)
         self.set_velocity(v, omega)
