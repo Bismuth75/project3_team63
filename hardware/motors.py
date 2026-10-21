@@ -8,14 +8,12 @@ class Motors:
     def __init__(self):
         self.motor_L = Motor('A')
         self.motor_R = Motor('B')
-        #self.motor_L.set_speed_unit_rpm(True)
-        #self.motor_R.set_speed_unit_rpm(True)
         self.last_L = None
         self.last_R = None
     
     def set_rpm(self, rpm_L, rpm_R):
-        sL = round(clamp(c.L_DIR * rpm_L, -c.MAX_RPM, c.MAX_RPM), 1)
-        sR = round(clamp(c.R_DIR * rpm_R, -c.MAX_RPM, c.MAX_RPM), 1)
+        sL = round(clamp(c.L_DIR * rpm_L / c.RPM_PER_UNIT, -100, 100), 1)
+        sR = round(clamp(c.R_DIR * rpm_R / c.RPM_PER_UNIT, -100, 100), 1)
         if sL != self.last_L:
             self.motor_L.start(sL)
             self.last_L = sL

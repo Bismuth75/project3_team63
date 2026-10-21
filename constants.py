@@ -10,9 +10,12 @@ SENSOR_RADIUS = 4
 LINE_HALF_WIDTH = 1.27
 L_DIR = -1
 R_DIR = 1
-RPM_TO_RADS = math.pi / 30
-RADS_TO_RPM = 30 / math.pi
-MAX_RPM = 100
+#RPM_TO_RADS = math.pi / 30
+#RADS_TO_RPM = 30 / math.pi
+#MAX_RPM = 100
+L_RPM_PER_UNIT = 1.600
+R_RPM_PER_UNIT = 1.589
+
 
 #localization parameters
 LINE_CENTER_THRESHOLD = 0.2
