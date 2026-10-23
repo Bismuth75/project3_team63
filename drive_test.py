@@ -19,12 +19,18 @@ def straight_drive(drive, imu, button, v): #use to tune P_HEADING
             time.sleep(c.LOOP_SLEEP)
         drive.stop()
 
-def turn_test(drive, button, turn_amount, wait): #use to tune P_TURN and OMEGA_MIN
-    while True:
+def turn_test(drive, button, imu, turn_amount, wait):#use to tune P_TURN and OMEGA_MIN
+   turns = 1
+   first_heading = imu.get_heading()
+   while True:
         while not button.on:
             time.sleep(c.LOOP_SLEEP)
         while button.on:
-            drive.turn_by(math.radians(turn_amount))
+            target = wrap(first_heading + math.radians(turn_amount) * turns)
+            drive.turn_to(first_heading + math.radians(turn_amount) * turns)
+            turns += 1
+            current = imu.get_heading()
+            print(f"Target: {target} Current: {current}")
             time.sleep(wait)
         
 def distance_test(drive, imu, button, distance, v):
@@ -33,6 +39,14 @@ def distance_test(drive, imu, button, distance, v):
             time.sleep(c.LOOP_SLEEP)
         while button.on:
             drive.drive_distance(distance, v, imu.get_heading())
+
+def min_test(drive, v, omega):
+    while True:
+        drive.set_velocity(v, omega)
+        if button.on:
+            v += 0.1
+            omega += 0.02
+        print(f"v: {v} omega: {omega}")
             
 if __name__ == "__main__":
     imu = IMU()
@@ -43,9 +57,12 @@ if __name__ == "__main__":
     button = Switch()
     
     try:
-        #straight_drive(drive, imu, button, 15)
-        turn_test(drive, button, 90, 3)
+        #straight_drive(drive, imu, button, -10)
+        #drive.drive_distance(60, 30, imu.get_heading())
+        #turn_test(drive, button, imu, 90, 3)
+        #min_test(drive, 4, 0)
         #distance_test(drive, imu, button, 20, 5)
+        drive.drive_distance(90, 60, imu.get_heading())
     except KeyboardInterrupt:
         print("terminated")
     finally:

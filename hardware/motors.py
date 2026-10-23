@@ -12,8 +12,8 @@ class Motors:
         self.last_R = None
     
     def set_rpm(self, rpm_L, rpm_R):
-        sL = round(clamp(c.L_DIR * rpm_L / c.RPM_PER_UNIT, -100, 100), 1)
-        sR = round(clamp(c.R_DIR * rpm_R / c.RPM_PER_UNIT, -100, 100), 1)
+        sL = round(clamp(c.L_DIR * rpm_L / c.L_RPM_PER_UNIT, -100, 100), 1)
+        sR = round(clamp(c.R_DIR * rpm_R / c.R_RPM_PER_UNIT, -100, 100), 1)
         if sL != self.last_L:
             self.motor_L.start(sL)
             self.last_L = sL

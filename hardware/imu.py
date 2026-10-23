@@ -60,6 +60,10 @@ class IMU:
         with self.lock:
             return wrap(self.heading)
         
+    def get_heading_rate(self):
+        with self.lock:
+            return -math.radians(self.rates[2])
+        
     def get_rates(self):
         with self.lock:
             return self.rates  

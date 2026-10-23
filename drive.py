@@ -7,7 +7,13 @@ class Drive:
     def __init__(self, imu, motors):
         self.imu = imu
         self.m = motors
-        self.hold_heading = False
+        self.hold_heading = None
+        self.v_last = 0.0
+
+    def ramp(self, v_target, dt):
+        step = c.ACCEL_MAX * dt
+        self.v_last = clamp(v_target, self.v_last - step, self.v_last + step)
+        return self.v_last
 
     def set_velocity(self, v, omega):
         vL = v + omega * c.TRACK_RADIUS
@@ -18,6 +24,7 @@ class Drive:
     def stop(self):
         self.m.hold()
         self.hold_heading = None
+        self.v_last = 0.0
 
     def release(self):
         self.m.release()
@@ -30,30 +37,53 @@ class Drive:
             if abs(err) < error_margin:
                 self.stop()
                 return True
-            w = clamp(c.P_TURN * err, -c.OMEGA_MAX, c.OMEGA_MAX) #keeps target omega in range
-            w = math.copysign(max(c.OMEGA_MIN, abs(w)), err) #prevents |omega| from going under min movement speed
+            w = c.P_TURN * err - c.D_TURN * self.imu.get_heading_rate()
+            w = clamp(w, -c.OMEGA_MAX, c.OMEGA_MAX) #keeps target omega in range
+            w = math.copysign(max(c.OMEGA_MIN, abs(w)), w) #prevents |omega| from going under min movement speed
             self.set_velocity(0, w)
             time.sleep(c.LOOP_SLEEP)
         self.stop()
         return False
         
     def turn_by(self, turn_amount, **kw):
-        return self.turn_to(wrap(self.imu.get_heading() + turn_amount), **kw)
+        self.turn_to(wrap(self.imu.get_heading() + turn_amount), **kw)
         
     def drive_distance(self, dist, v_target, hold_heading, error_margin=0.1, timeout=10):
         t0 = time.monotonic()
         start_R = self.m.get_encoder_R()
         start_L = self.m.get_encoder_L()
+        prev_traveled = 0.0
+        prev_t = t0
+        v_meas = 0.0
+        starting = True
         while time.monotonic() - t0 < timeout:
-            angle_err = wrap(hold_heading - self.imu.get_heading())
+            now = time.monotonic()
             traveled = ((self.m.get_encoder_R() - start_R) + (self.m.get_encoder_L() - start_L)) * c.WHEEL_RADIUS / 2
+            
+            #encoder noise filter
+            dt = now - prev_t
+            if dt > 0:
+                v_raw = (traveled - prev_traveled) / dt
+                v_meas = c.V_FILTER * v_meas + (1 - c.V_FILTER) * v_raw
+                prev_traveled, prev_t = traveled, now
+            
             distance_err = dist - traveled
             if abs(distance_err) < error_margin:
                 self.stop()
                 return True
-            v = clamp(c.P_STRAIGHT * distance_err, -v_target, v_target) #keeps target v in range
-            v = math.copysign(max(c.V_MIN, abs(v)), distance_err) #prevents |v| from going under min movement speed
-            self.set_velocity(v, clamp(c.P_HEADING * angle_err, -c.OMEGA_MAX, c.OMEGA_MAX))
+
+            v = c.P_STRAIGHT * distance_err - c.D_STRAIGHT * v_meas
+            v = clamp(v, -v_target, v_target)
+            v = math.copysign(max(c.V_MIN, abs(v)), v)
+            if starting:
+                ramped = self.ramp(v, dt)
+                v = self.ramp(v, dt)
+                if abs(v - ramped) < 0.1 * v_target:
+                    starting = False
+            angle_err = wrap(hold_heading - self.imu.get_heading())
+            omega = c.P_HEADING * angle_err - c.D_HEADING * self.imu.get_heading_rate()
+            omega = clamp(omega, -c.OMEGA_MAX, c.OMEGA_MAX)
+            self.set_velocity(v, omega)
             time.sleep(c.LOOP_SLEEP)
         self.stop()
         return False

@@ -5,6 +5,7 @@ BRAKE_TIME = 0.15
 
 #physical constants
 TRACK_RADIUS = 10
+RADS_TO_RPM = 30 / math.pi
 WHEEL_RADIUS = 4
 SENSOR_RADIUS = 4
 LINE_HALF_WIDTH = 1.27
@@ -13,7 +14,7 @@ R_DIR = 1
 #RPM_TO_RADS = math.pi / 30
 #RADS_TO_RPM = 30 / math.pi
 #MAX_RPM = 100
-L_RPM_PER_UNIT = 1.600
+L_RPM_PER_UNIT = 1.5
 R_RPM_PER_UNIT = 1.589
 
 
@@ -43,13 +44,20 @@ HALL_THRESHOLD = 5 #magnetic field strength
 
 
 #base movment parameters
+ACCEL_MAX = 12 #cm/s^2
 OMEGA_MAX = 4 #rad/s
-OMEGA_MIN = 0.1 #rad/s
+OMEGA_MIN = 0.5 #rad/s
 OMEGA_FOLLOW = 2
 V_MAX = 15 #cm/s
-V_MIN = 0.1 #cm/s
+V_MIN = 4 #cm/s
 
 #PID
-P_TURN = 2
+V_FILTER = 0.7 #noise filter for encoders
+
+P_TURN = 4
+D_TURN = 0.5
+
 P_STRAIGHT = 1.5
-P_HEADING = 5 #tuned?
+D_STRAIGHT = 0.4
+P_HEADING = 5
+D_HEADING = 0.1
