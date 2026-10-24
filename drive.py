@@ -46,7 +46,7 @@ class Drive:
         return False
         
     def turn_by(self, turn_amount, **kw):
-        self.turn_to(wrap(self.imu.get_heading() + turn_amount), **kw)
+        return self.turn_to(wrap(self.imu.get_heading() + turn_amount), **kw)
         
     def drive_distance(self, dist, v_target, hold_heading, error_margin=0.1, timeout=10):
         t0 = time.monotonic()
@@ -77,9 +77,9 @@ class Drive:
             v = math.copysign(max(c.V_MIN, abs(v)), v)
             if starting:
                 ramped = self.ramp(v, dt)
-                v = self.ramp(v, dt)
-                if abs(v - ramped) < 0.1 * v_target:
+                if abs(ramped - v) < 0.01:
                     starting = False
+                v = ramped
             angle_err = wrap(hold_heading - self.imu.get_heading())
             omega = c.P_HEADING * angle_err - c.D_HEADING * self.imu.get_heading_rate()
             omega = clamp(omega, -c.OMEGA_MAX, c.OMEGA_MAX)
@@ -93,5 +93,5 @@ class Drive:
         if self.hold_heading is None:
             self.hold_heading = self.imu.get_heading()
         angle_err = wrap(self.hold_heading - self.imu.get_heading())
-        omega = clamp(c.P_HEADING * angle_err, -c.OMEGA_MAX, c.OMEGA_MAX)
+        omega = clamp(c.P_HEADING * angle_err - c.D_HEADING * self.imu.get_heading_rate(), -c.OMEGA_MAX, c.OMEGA_MAX)
         self.set_velocity(v, omega)

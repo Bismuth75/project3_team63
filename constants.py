@@ -4,7 +4,7 @@ LOOP_SLEEP = 0.01
 BRAKE_TIME = 0.15
 
 #physical constants
-TRACK_RADIUS = 10
+TRACK_RADIUS = 12
 RADS_TO_RPM = 30 / math.pi
 WHEEL_RADIUS = 4
 SENSOR_RADIUS = 4
@@ -12,7 +12,6 @@ LINE_HALF_WIDTH = 1.27
 L_DIR = -1
 R_DIR = 1
 #RPM_TO_RADS = math.pi / 30
-#RADS_TO_RPM = 30 / math.pi
 #MAX_RPM = 100
 L_RPM_PER_UNIT = 1.5
 R_RPM_PER_UNIT = 1.589
@@ -33,12 +32,12 @@ HOMING_V = 3
 LINE_R_PORT = 1
 LINE_L_PORT = 2
 LINE_M_PORT = 3
-ULTRASONIC_PORT = 5
+ULTRASONIC_PORT = 18
 HALL_PORT = 22
 BUTTON_PORT = 5
 
 #sensor constants
-OBSTACLE_THRESHOLD = 16 #cm
+OBSTACLE_THRESHOLD = 7 #cm
 OBSTACLE_EVENT_STRICTNESS = 10 #number of "True" readings until considered positive detection
 HALL_THRESHOLD = 5 #magnetic field strength
 

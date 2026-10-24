@@ -1,6 +1,7 @@
 from basehat import UltrasonicSensor
+import time, sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import constants as c
-import time
 
 class Ultrasonic:
     

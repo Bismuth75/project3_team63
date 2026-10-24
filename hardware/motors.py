@@ -1,8 +1,10 @@
-import constants as c
-from utils import clamp
 import math
 import time
 from buildhat import Motor
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+import constants as c
+from utils import clamp
 
 class Motors:
     def __init__(self):

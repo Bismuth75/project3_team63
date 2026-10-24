@@ -62,7 +62,9 @@ if __name__ == "__main__":
         #turn_test(drive, button, imu, 90, 3)
         #min_test(drive, 4, 0)
         #distance_test(drive, imu, button, 20, 5)
-        drive.drive_distance(90, 60, imu.get_heading())
+        #drive.drive_distance(90, 60, imu.get_heading())
+        while True:
+            drive.drive_straight(10)
     except KeyboardInterrupt:
         print("terminated")
     finally:

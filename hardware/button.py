@@ -15,8 +15,8 @@ class Switch:
 
 if __name__ == "__main__":
     switch = Switch()
-    while True:
-        try:
+    try:
+        while True:
             print(switch.get_button())
-        except KeyboardInterrupt:
-            print("terminated")
+    except KeyboardInterrupt:
+        print("terminated")
