@@ -23,15 +23,12 @@ def turn_test(drive, button, imu, turn_amount, wait):#use to tune P_TURN and OME
    turns = 1
    first_heading = imu.get_heading()
    while True:
-        while not button.on:
-            time.sleep(c.LOOP_SLEEP)
-        while button.on:
-            target = wrap(first_heading + math.radians(turn_amount) * turns)
-            drive.turn_to(first_heading + math.radians(turn_amount) * turns)
-            turns += 1
-            current = imu.get_heading()
-            print(f"Target: {target} Current: {current}")
-            time.sleep(wait)
+        target = wrap(first_heading + math.radians(turn_amount) * turns)
+        drive.turn_to(first_heading + math.radians(turn_amount) * turns)
+        turns += 1
+        current = imu.get_heading()
+        print(f"Target: {target} Current: {current}")
+        time.sleep(wait)
         
 def distance_test(drive, imu, button, distance, v):
     while True:
@@ -64,7 +61,7 @@ if __name__ == "__main__":
         #distance_test(drive, imu, button, 20, 5)
         #drive.drive_distance(90, 60, imu.get_heading())
         while True:
-            drive.drive_straight(10)
+            drive.drive_straight(30)
     except KeyboardInterrupt:
         print("terminated")
     finally:

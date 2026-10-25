@@ -128,7 +128,9 @@ if __name__ == "__main__":
     nav = Line_Nav(drive, imu, Line())
     
     try:
-        pass
+        while True:
+            nav.primitive_line_follow(20)
+            time.sleep(0.1)
     except KeyboardInterrupt:
         print("terminated")
     finally:

@@ -8,6 +8,7 @@ from hardware.line_finder import Line
 from hardware.ultrasonic import Ultrasonic
 from hardware.hall_sensor import Hall
 from hardware.button import Switch
+import math
 
 # behavior
 from drive import Drive
@@ -62,8 +63,20 @@ if __name__ == "__main__":
                 if obstacle.obstacle_detect():
                     state = "obstacle"
             elif state == "obstacle":
-                pass
+                print(state)
+                drive.release()
+                time.sleep(3)
+                drive.turn_by(math.radians(90))
+                time.sleep(1)
+                drive.turn_by(math.radians(90))
+                time.sleep(1)
+                drive.drive_straight(-30)
+                time.sleep(5)
+                drive.turn_by(math.radians(180))
+                drive.release()
             time.sleep(c.LOOP_SLEEP)
+    except KeyboardInterrupt:
+        print("terminated")
     finally:
         drive.stop()
         drive.release()

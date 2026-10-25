@@ -29,16 +29,16 @@ MAX_HEADING_DISAGREEMENT = math.radians(3) #maybe?
 HOMING_V = 3
 
 #sensor ports
-LINE_R_PORT = 1
-LINE_L_PORT = 2
-LINE_M_PORT = 3
+LINE_R_PORT = 26
+LINE_L_PORT = 24
+#LINE_M_PORT = 3
 ULTRASONIC_PORT = 18
 HALL_PORT = 22
 BUTTON_PORT = 5
 
 #sensor constants
-OBSTACLE_THRESHOLD = 7 #cm
-OBSTACLE_EVENT_STRICTNESS = 10 #number of "True" readings until considered positive detection
+OBSTACLE_THRESHOLD = 4.5 #cm
+OBSTACLE_EVENT_STRICTNESS = 5 #number of "True" readings until considered positive detection
 HALL_THRESHOLD = 5 #magnetic field strength
 
 
@@ -47,13 +47,13 @@ ACCEL_MAX = 12 #cm/s^2
 OMEGA_MAX = 4 #rad/s
 OMEGA_MIN = 0.5 #rad/s
 OMEGA_FOLLOW = 2
-V_MAX = 15 #cm/s
+V_MAX = 20 #cm/s
 V_MIN = 4 #cm/s
 
 #PID
 V_FILTER = 0.7 #noise filter for encoders
 
-P_TURN = 4
+P_TURN = 3
 D_TURN = 0.5
 
 P_STRAIGHT = 1.5
