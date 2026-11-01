@@ -48,8 +48,9 @@ class Drive:
     def turn_by(self, turn_amount, **kw):
         return self.turn_to(wrap(self.imu.get_heading() + turn_amount), **kw)
         
-    def drive_distance(self, dist, v_target, hold_heading, error_margin=0.1, timeout=10):
+    def drive_distance(self, dist, v_target, error_margin=0.1, timeout=10):
         t0 = time.monotonic()
+        hold_heading = self.imu.get_heading()
         start_R = self.m.get_encoder_R()
         start_L = self.m.get_encoder_L()
         prev_traveled = 0.0

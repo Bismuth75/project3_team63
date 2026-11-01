@@ -1,6 +1,6 @@
 from grove.gpio import GPIO
 import time, sys, os
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import constants as c
 
 class Line:
@@ -11,10 +11,10 @@ class Line:
         #self.line_M = GPIO(c.LINE_M_PORT, GPIO.IN)
 
     def get_line_R(self):
-        return not bool(self.line_R.read())
+        return bool(self.line_R.read())
 
     def get_line_L(self):
-        return not bool(self.line_L.read())
+        return bool(self.line_L.read())
     
     # def get_line_M(self):
     #     return bool(self.line_M.read())

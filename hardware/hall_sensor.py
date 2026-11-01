@@ -1,6 +1,7 @@
-from gpiozero import DigitalInputDevice
+import time, sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import constants as c
-import time
+from gpiozero import DigitalInputDevice
 
 class Hall:
     def __init__(self):
@@ -20,3 +21,4 @@ if __name__ == "__main__":
             time.sleep(0.1)
     except KeyboardInterrupt:
         print("teminated")
+        

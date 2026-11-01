@@ -13,7 +13,9 @@ class Obstacle:
         if dist is not None:
             self.history.append(dist < c.OBSTACLE_THRESHOLD)
         return len(self.history) == c.OBSTACLE_EVENT_STRICTNESS and all(self.history)
-
+    
+    def obstacle_clear(self):
+        return len(self.history) == self.history.maxlen and not any(self.history)
 
 if __name__ == "__main__":
     from hardware.imu import IMU
