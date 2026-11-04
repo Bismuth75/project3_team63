@@ -313,27 +313,6 @@ assert VALVE_COST.shape == (len(LIQUID_DIAMETERS_M), len(VALVE_TIERS))
 
 
 if __name__ == "__main__":
-    # Q = 0.05     # m^3/s, example flow
-    # L = 40.0     # m, example pipe run
-
-    # print(f"{len(PIPES)} pipes, {len(BENDS)} bends, {len(VALVES)} valves, {len(PUMPS)} pumps\n")
-
-    # print("Pipe options for Q = 0.05 m^3/s over 40 m (sorted by cost):")
-    # for p in sorted(PIPES, key=lambda p: p.capital_cost(L))[:8]:
-    #     print(f"  {p.tier:<12} D={p.diameter_m:.2f} m  "
-    #           f"h_L={p.head_loss(Q, L):6.2f} m  cost=${p.capital_cost(L):>9,.0f}")
-
-    # seg = PipeSegment(PIPES[0], L, bends=[find_bend(90, 0.10)] * 2)
-    # print(f"\nSegment with 2x 90 deg bends: h_L={seg.pipe.head_loss(Q, L) + sum(b.head_loss(Q) for b in seg.bends):.2f} m, "
-    #       f"cost=${seg.capital_cost():,.0f}")
-
-    # pump = pump_for_height("Standard", 14)
-    # print(f"\nStandard pump for 14 m lift -> rated {pump.rating_m:.0f} m, "
-    #       f"cost=${pump.capital_cost(Q):,.0f}, power={pump.power_w(Q, 14):,.0f} W")
-
-    # print("\nFermenter power draw:")
-    # for f in FERMENTERS:
-    #     print(f"  {f.tier:<12} eta={f.efficiency:.2f}  {f.power_w():,.0f} W")
     print(TARGET_OUTPUT_M)
     print(TARGET_OUTPUT_GAL / galPerm3 / SECONDS_PER_DAY)
     print(f"Error = {TARGET_OUTPUT_GAL / galPerm3 / SECONDS_PER_DAY - TARGET_OUTPUT_M}")
