@@ -1,12 +1,8 @@
-from new_catalog import FERMENTERS, FILTERS, DISTILLERS, DEHYDRATORS
-
-#densities (kg)
-RHO_SUGAR = 1599
-RHO_WATER = 997
-RHO_FIBER = 1311
-RHO_ETH = 789
-
-GAL_TO_M3 = 0.003785411784
+from catalog import FERMENTERS, FILTERS, DISTILLERS, DEHYDRATORS
+from catalog import PIPE_COST_PER_M, PIPE_FRICTION, PIPE_DIAMETER
+from catalog import RHO_ETH, RHO_FIBER, RHO_SUGAR, RHO_WATER, GAL_TO_M3
+import numpy as np
+import math
 
 def eth_percentage_mass_req(eta_fer, eta_fil, eta_dis, eta_deh, waste_mass = 1):
     sugar0 = 0.2 * waste_mass
@@ -65,18 +61,6 @@ def eth_percentage_mass_req(eta_fer, eta_fil, eta_dis, eta_deh, waste_mass = 1):
     # print(f"Final Volume (gal) {gal_final}")
     return (eth_percent, 100000 / 86400 / gal_final)
 
-#with open("UnitOpCombos.txt", 'w') as fid:
-    
-options = []
-
-for fer in FERMENTERS:
-    for fil in FILTERS:
-        for dis in DISTILLERS:
-            for deh in DEHYDRATORS:
-                result = eth_percentage_mass_req(fer[0], fil[0], dis[0], deh[0])
-                if result[0] >= 0.98:
-                    options.append((FERMENTERS.index(fer),FILTERS.index(fil),DISTILLERS.index(dis),DEHYDRATORS.index(deh),result[1]))
-
 def density(sugar, water, fiber, eth):
     """Mass-weighted average density (course method)."""
     total = sugar + water + fiber + eth
@@ -122,6 +106,29 @@ def capital_cost(option):
     cost+= vol_flow(*distilled) * DEHYDRATORS[option[3]][1]
     return cost
 
+def flows(option):
+    fermented = fermenter(option[4], FERMENTERS[option[0]][0])
+    filtered = filt(*fermented, FILTERS[option[1]][0])
+    distilled = distiller(*filtered, DISTILLERS[option[2]][0])
+    dehydrated = dehydrator(*distilled, DEHYDRATORS[option[3]][0])
+    return vol_flow(option[4]*0.2,option[4]*0.6,option[4]*0.2,0), vol_flow(*fermented), vol_flow(*filtered), vol_flow(*distilled), vol_flow(*dehydrated)    
+
+def pipe_loss(friction, flow, diameter, length):
+    return friction * 8 /(math.pi**2 * 9.81) * flow**2 * length / diameter**5
+
+def attachment_loss(loss, flow, diameter):
+    return loss * (flow / (math.pi * diameter**2 / 4))**2 / 2
+
+options = []
+
+for fer in FERMENTERS:
+    for fil in FILTERS:
+        for dis in DISTILLERS:
+            for deh in DEHYDRATORS:
+                result = eth_percentage_mass_req(fer[0], fil[0], dis[0], deh[0])
+                if result[0] >= 0.98:
+                    options.append((FERMENTERS.index(fer),FILTERS.index(fil),DISTILLERS.index(dis),DEHYDRATORS.index(deh),result[1]))
+
 cost_best = min(options, key=capital_cost)
 feed_best = min(options, key=lambda o: o[4])
 
@@ -130,8 +137,18 @@ pairs = [(option[4], capital_cost(option)) for option in options]
 by_feed = sorted(pairs, key=lambda o: o[1])
 by_cost = sorted(pairs, key=lambda o: o[0])
 
-print(by_feed)
-print("\n\n\n")
-print(by_cost)
+# print(by_feed)
+# print("\n\n\n")
+# print(by_cost)
 
-print(cost_best)
+# print(cost_best)
+
+#0 = valve
+#1 = pipe
+#2 = bend
+
+pipe_segment_1 = (0 , (1,9.75), 0)
+pipe_segment_2 = (0 , (1, 3.35), 0)
+pipe_segment_3 = (0 , (1, 3.85), (2, 90), (1, 1.5), 0)
+
+print(flows(options[0]))
