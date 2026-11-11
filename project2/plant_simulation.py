@@ -8,21 +8,25 @@ from catalog import PUMP_COST, PUMP_EFFICIENCY, PUMP_RATINGS
 from itertools import product
 import numpy as np
 import matplotlib.pyplot as plt
-import math, ast
+import math, ast, time
 
 G = 9.81
 # waste parameters
 WASTE_EXIT_HEIGHT = 1.0 #waste pipes flow this height
 CO2_DUCT_M = 0.25 #alloted length for CO2 ductwork leaving the side of building
 DUCT_COST_PER_M = 228 # 1.0m diameter duct (cheapest bc waste doesn't need factor into energy)
-WASTE_DIAMETER = 0.10
-WASTE_PIPE_Q = 0 #
+WASTE_DIAMETER = 0.10 #smallest diameter because the energy is already lost
+WASTE_PIPE_Q = 0 #worst quality because the energy is already lost
 
 def eth_percentage_mass_req(eta_fer, eta_fil, eta_dis, eta_deh, waste_mass = 1):
+    """goes through stages one by one and computes the ethanol efficiency 
+    and required input mass given a set of unit op efficiences"""
+    
+    #initial
     sugar0 = 0.2 * waste_mass
     water0 = 0.6 * waste_mass
     fiber0 = 0.2 * waste_mass
-    
+    #densities
     rho_sugar = 1599
     rho_water = 997
     rho_fiber = 1311
@@ -76,16 +80,17 @@ def eth_percentage_mass_req(eta_fer, eta_fil, eta_dis, eta_deh, waste_mass = 1):
     return (eth_percent, 100000 / 86400 / gal_final)
 
 def density(sugar, water, fiber, eth):
-    """Mass-weighted average density (course method)."""
+    #calculates density of the stream at a certain point given the masses of the 4 components
     total = sugar + water + fiber + eth
     return (sugar * RHO_SUGAR + water * RHO_WATER + fiber * RHO_FIBER + eth * RHO_ETH) / total
 
 def vol_flow(sugar, water, fiber, eth):
-    """Volumetric flow (m^3/s) from mass flows (kg/s). Same as volume if inputs are kg."""
+    #calculates the volumetric flow of the stream at a certain point given the mass flow rates
     total = sugar + water + fiber + eth
     return total / density(sugar, water, fiber, eth)
 
 def fermenter(input_mass, eta_fer):
+    #takes input mass, returns mass flow rates of the four components
     sugar = 0.2 * input_mass
     water = 0.6 * input_mass
     fiber = 0.2 * input_mass
@@ -96,21 +101,24 @@ def fermenter(input_mass, eta_fer):
     return sugar_out, water, fiber, eth_out
 
 def filt(sugar, water, fiber, eth, eta_fil):
+    #returns the mass flow rates after being filtered
     fiber_out = fiber * (1 - eta_fil)
     return sugar, water, fiber_out, eth
 
 def distiller(sugar, water, fiber, eth, eta_dis):
-    # Keep all ethanol; scale everything else by k so eth / total = eta_dis
+    #returns the mass flow rates after being distilled
     k = eth * (1 / eta_dis - 1) / (sugar + water + fiber)
-    k = min(k, 1)    # can't add impurities if the stream is already purer than eta_dis
+    k = min(k, 1)    #if the stream is purer already it won't make it impure
     sugar_out, water_out, fiber_out = sugar * k, water * k, fiber * k
     return sugar_out, water_out, fiber_out, eth
 
 def dehydrator(sugar, water, fiber, eth, eta_deh):
+    #returns the mass flow rates after being dehydrated
     water_out = water * (1 - eta_deh)
     return sugar, water_out, fiber, eth
 
 def capital_cost(option):
+    #returns the capital cost of a combination of unit ops stored in a tuple
     fermented = fermenter(option[4], FERMENTERS[option[0]][0])
     cost = vol_flow(option[4]*0.2,option[4]*0.6,option[4]*0.2,0) * FERMENTERS[option[0]][1]
     filtered = filt(*fermented, FILTERS[option[1]][0])
@@ -121,6 +129,7 @@ def capital_cost(option):
     return cost
 
 def flows(option):
+    #returns the volumetric flows and densities of each stage of a combination of unit ops
     feed = (option[4]*0.2, option[4]*0.6, option[4]*0.2, 0)
     fermented = fermenter(option[4], FERMENTERS[option[0]][0])
     filtered = filt(*fermented, FILTERS[option[1]][0])
@@ -129,16 +138,21 @@ def flows(option):
     return [(vol_flow(*row), density(*row)) for row in (feed, fermented, filtered, distilled, dehydrated)]
 
 def pipe_loss(friction, flow, diameter, length):
+    #computes head loss of a length of pipe
     return friction * 8 /(math.pi**2 * 9.81) * flow**2 * length / diameter**5
 
 def attachment_loss(loss, flow, diameter):
+    #computes head loss of a valve or bend
     return loss * (flow / (math.pi * diameter**2 / 4))**2 / 2 / 9.81
 
 def segment_loss(segment, stage, option, diameter, qualities):
+    #computes the net head loss for a segment of pipe
     flow, rho = flows(option)[stage]
     return segment_head(segment, flow, diameter, qualities)
 
 def segment_head(segment, flow, diameter, qualities):
+    """computes the head loss if you know the flows so they're 
+    not recalculated in the main loop, saves a ton of time"""
     head = 0
     for i, part in enumerate(segment):
         match part[0]:
@@ -154,6 +168,7 @@ def segment_head(segment, flow, diameter, qualities):
     return head
 
 def segment_cost(segment, diameter, qualities):
+    #computes the cost of a segment of pipe
     cost = 0
     for i, part in enumerate(segment):
         match part[0]:
@@ -166,6 +181,7 @@ def segment_cost(segment, diameter, qualities):
     return cost
 
 def part_cost(kind, diameter, quality, length = 0, angle = 90):
+    #computes the cost of a single component
     row = DIAMETERS.index(diameter)
     match kind:
         case 0:
@@ -177,27 +193,26 @@ def part_cost(kind, diameter, quality, length = 0, angle = 90):
     return cost
 
 def energy_efficiency(option, segments, pump_eff):
-    stage_flows = flows(option)          # [(Q, rho), ...] for stages 0-4
-    # Lift + losses in every segment: head (m) -> power (W)
-    # A downhill drop (dz < 0) pays for that segment's own losses, but any leftover
-    # can't flow back to the pump, so a segment never contributes less than zero
+    stage_flows = flows(option)
+    #converts head loss (m) to power (W)
+    """downhill drops can offset that segment's own losses but not less than 0
+    because energy doesn't flow back into the pump"""
     segment_power = 0
     for segment, stage, diameter, qualities, dz in segments:
         flow, rho = stage_flows[stage]
         head = segment_loss(segment, stage, option, diameter, qualities)
         segment_power += rho * G * flow * max(0, dz + head)
-    # Kinetic energy of the feed and product is left out: it's ~0.1 kW vs ~8,000 kW total
     pump_power = segment_power / pump_eff
-    # Unit operations: kWh/day -> W
     i, j, k, l, feed = option
+    #convert unit ops from kWh/day to W
     unit_kwh_day = FERMENTERS[i][2] + FILTERS[j][2] + DISTILLERS[k][2] + DEHYDRATORS[l][2]
     unit_power = unit_kwh_day * 3_600_000 / 86_400
-    # Usable energy out: product volume flow -> gal/s -> W
     q_out, rho_out = stage_flows[4]
-    usable_power = q_out / GAL_TO_M3 * J_PER_GAL_ETH    
+    usable_power = q_out / GAL_TO_M3 * J_PER_GAL_ETH * purity(option) #ethanol chemical energy
     return usable_power / (pump_power + unit_power)
 
 def waste_cost(waste_segments):
+    #computes fixed cost of waste segments
     cost = CO2_DUCT_M * DUCT_COST_PER_M
     for segment in waste_segments:
         qualities = [WASTE_PIPE_Q if p[0] == 1 else None for p in segment]
@@ -205,6 +220,7 @@ def waste_cost(waste_segments):
     return float(cost)
 
 def system_cost(option, segments, pump, waste_segments):
+    #computes the net cost of an entire system
     stage_flows = flows(option)
     # unit ops
     unit_cost = capital_cost(option) + waste_cost(waste_segments)
@@ -218,18 +234,29 @@ def system_cost(option, segments, pump, waste_segments):
     pump_cost = PUMP_COST[rating, tier] * q_feed
     return unit_cost + piping_cost + pump_cost
 
+def purity(option):
+    #returns the output ehtanol purity given an option of unit ops
+    i, j, k, l, feed = option
+    return eth_percentage_mass_req(FERMENTERS[i][0], FILTERS[j][0], DISTILLERS[k][0], DEHYDRATORS[l][0])[0]
+
 def keep_best(items):
-    #remove strictly worse items
-    front = []
+    #remove strictly worse items (lower eff, higher cost)
+    ls = []
     best_loss = float("inf")
+    #sorts items by cost, uses loss to break ties
+    """each new item must be more expensive than the previous ones checked
+    so if it's efficiency is worse get rid of it"""
     for item in sorted(items, key=lambda x: (x[0], x[1])):
         if item[1] < best_loss:
-            front.append(item)
+            ls.append(item)
             best_loss = item[1]
-    return front
+    return ls
 
 def segment_choices(segment, flow, rho, dz):
+    #for a given segment computes the viable choices with keep_best
+    #saves compute to do the segments independently
     choices = []
+    #product builds a list of tuples of all the combinations
     for d, pipe_q, valve_q in product(DIAMETERS, range(len(PIPE_FRICTION)), range(len(VALVE_FLOW_COEFF))):
         qualities = [valve_q if p[0] == 0 else pipe_q if p[0] == 1 else None for p in segment]
         cost = segment_cost(segment, d, qualities)
@@ -256,12 +283,11 @@ def find_optimal(layout, waste_segments):
         unit_cost = capital_cost(option) + fixed_waste_cost
         unit_kwh_day = FERMENTERS[i][2] + FILTERS[j][2] + DISTILLERS[k][2] + DEHYDRATORS[l][2]
         unit_power = unit_kwh_day * 3_600_000 / 86_400
-        usable_power = stage_flows[4][0] / GAL_TO_M3 * J_PER_GAL_ETH
+        usable_power = stage_flows[4][0] / GAL_TO_M3 * J_PER_GAL_ETH * purity(option)
         q_feed = stage_flows[0][0]
         #pipe/pump choices (each segment's power already includes its lift)
         per_segment = [segment_choices(seg, *stage_flows[st], dz) for seg, st, dz in layout]
-        #merge segments one at a time, dropping dominated combos after each merge
-        #(trying every combo at once runs out of memory with many segments)
+        #merge segments one at a time, remove strictly worse combos after each merge
         piping = [(0, 0, ())]
         for choices in per_segment:
             piping = keep_best([(c1 + c2, p1 + p2, d1 + (d2,))
@@ -277,11 +303,72 @@ def find_optimal(layout, waste_segments):
                 option_results.append((cost, -efficiency, design))
         
         results.extend(keep_best(option_results))
-    #neg efficiency because keep_best assumes lower is better for both
+    #negative efficiency because keep_best assumes lower is better for both
     return [(-neg_eff, cost, design) for cost, neg_eff, design in keep_best(results)]
 
-options = []
+def validate_model():
+    S_PER_DAY = 86_400
+    D = 0.10
+    #inputs
+    
+    feed = 835_200 * GAL_TO_M3 * 1180.2 / S_PER_DAY
+    option = (0, 0, 0, 0, feed)
+    stage_flows = flows(option)
+    
+    #formatted layout of validation model
+    val_segments = [
+        (((1, 15.24), (2, 90), (2, 90), (0,)), 0, [3, None, None, 0]),
+        (((0,), (0,)), 1, [0, 0]),
+        (((0,), (0,)), 2, [0, 0]),
+        (((0,), (1, 3.048), (2, 90), (2, 90), (0,)), 3, [0, 3, None, None, 0]),
+        (((0,),), 4, [0]),]
+    
+    #mass flows
+    s0 = (0.2 * feed, 0.6 * feed, 0.2 * feed, 0)
+    s1 = fermenter(feed, FERMENTERS[0][0])
+    s2 = filt(*s1, FILTERS[0][0])
+    s3 = distiller(*s2, DISTILLERS[0][0])
+    s4 = dehydrator(*s3, DEHYDRATORS[0][0])
+    
+    #losses
+    area = math.pi * D**2 / 4
+    v = [q / area for q, rho in stage_flows]
+    loss_power = sum(stage_flows[st][1] * G * stage_flows[st][0] * segment_head(seg, stage_flows[st][0], D, q)
+                     for seg, st, q in val_segments)
+    co2 = 0.49 * FERMENTERS[0][0] * s0[0]
+    fiber_waste = s1[2] - s2[2]
+    dist_waste = sum(s2) - sum(s3)
+    deh_waste = s3[1] - s4[1]
+    carried_power = (co2 * G * 12.192 + 0.5 * co2 * v[1]**2
+                     + fiber_waste * G * 6.096 + 0.5 * fiber_waste * v[2]**2
+                     + 0.5 * dist_waste * v[3]**2
+                     + 0.5 * deh_waste * v[4]**2
+                     + sum(s4) * G * 3 + 0.5 * sum(s4) * v[4]**2)
+    pump_power = (loss_power + carried_power) / 0.80
+    unit_power = (FERMENTERS[0][2] + FILTERS[0][2] + DISTILLERS[0][2] + DEHYDRATORS[0][2]) * 3_600_000 / S_PER_DAY
+    usable_power = stage_flows[4][0] / GAL_TO_M3 * J_PER_GAL_ETH * purity(option)
+    
+    #site + mold + unit ops + pump + pipe + duct + valves + bends
+    cost = (1_760_000 + 12_000
+            + capital_cost(option)
+            + PUMP_COST[PUMP_RATINGS.index(18), 0] * stage_flows[0][0]
+            + PIPE_COST_PER_M[0, 3] * 18.288
+            + 228 * 3.048
+            + 8 * VALVE_COST[0, 0]
+            + 4 * BEND_COST[0, list(ANGLE_TO_LOSS).index(90)])
+    
+    print(f"Fluid velocity into filter: {v[1]:.2f}")
+    print(f"KE of dehydrator waste stream: {0.5 * deh_waste * v[4]**2 * S_PER_DAY / 1000:.2f}")
+    print(f"Sugar leaving as distiller waste: {(s2[0] - s3[0]) * S_PER_DAY:.2f}")
+    print(f"Capital cost: {cost:.2f}")
+    print(f"Energy ROI: {usable_power / (pump_power + unit_power):.2f}")
+    print(f"Volume of ethanol out: {stage_flows[4][0] / GAL_TO_M3 * S_PER_DAY:.2f} ")
+    print(f"Ethanol Purity: {purity(option):.2f}")
 
+start = time.monotonic()
+
+#builds list of possible unit op combos (eth% > 98)
+options = []
 for fer in FERMENTERS:
     for fil in FILTERS:
         for dis in DISTILLERS:
@@ -294,13 +381,14 @@ for fer in FERMENTERS:
 #1 = pipe
 #2 = bend
 
-pipe_segment_0 = ((1, 0.25), (0,))          # pump -> fermenter inlet valve
-pipe_segment_1 = ((0,) , (1,9.75), (0,))
-pipe_segment_2 = ((0,) , (1, 3.35), (0,))
-pipe_segment_3 = ((0,) , (1, 3.35), (2, 90), (1, 1.5), (0,))
-pipe_segment_4 = ((0,), (1, 0.25))          # dehydrator outlet valve -> product out
+#pipes come with lengths, bends come with angles
+pipe_segment_0 = ((1, 0.25), (0,)) #pump -> fermenter
+pipe_segment_1 = ((0,) , (1,9.75), (0,)) #fermenter -> filter
+pipe_segment_2 = ((0,) , (1, 3.35), (0,)) #filter -> distiller
+pipe_segment_3 = ((0,) , (1, 3.35), (2, 90), (1, 1.5), (0,)) #distiller -> dehydrator
+pipe_segment_4 = ((0,), (1, 0.25)) # dehydrator -> output
 
-layout = [
+layout = [ #segment, stage, height change
     (pipe_segment_0, 0, 0),
     (pipe_segment_1, 1, +9.75),
     (pipe_segment_2, 2, -3.35),
@@ -308,7 +396,7 @@ layout = [
     (pipe_segment_4, 4, 0),
 ]
 
-FILTER_WASTE_OUTLET = 10.75       # m above ground
+FILTER_WASTE_OUTLET = 10.75 # m above ground
 DISTILLER_WASTE_OUTLET = 7.40
 DEHYDRATOR_WASTE_OUTLET = 4.05
 
@@ -320,20 +408,17 @@ waste_segments = [waste_fiber, waste_distiller, waste_dehydrator]
 
 #Description of 1 item in full_designs
 #(Efficiency, Cost, ((Fermenter, Filter, Distiller, Dehydrator, Feed (kg/s)), ((diameter, pipe_q, valve_q) for each segment), (pump_lift, pump_q)))
-
-recalc = False
+#only recalculates if True, otherwise reads from text file
+recalc = True
 
 if recalc == True:
     full_designs = find_optimal(layout, waste_segments)
-    with open("full_designs.txt", "w") as f:
+    with open("full_designs.txt", 'w') as f:
         for item in full_designs:
             f.write(repr(item) + "\n")
 else:
     with open("full_designs.txt", 'r') as f:
          full_designs = [ast.literal_eval(line) for line in f if line.strip()]
-
-# for eff, cost, design in full_designs:
-#     print(f"{cost}\t{eff}")
 
 effs = [design[0] for design in full_designs]
 costs = [design[1] for design in full_designs]
@@ -347,6 +432,7 @@ plt.grid(True, which="both", alpha=0.3)
 plt.show()
 
 # normalize axes and find the "knee", point where the curve is starting to flatten out
+#use arrays to do operations on the entire data set at once
 effs_array = np.array([eff for eff, cost, design in full_designs])
 costs_array = np.array([cost for eff, cost, design in full_designs])
 x_norm = (costs_array - costs_array.min()) / (costs_array.max() - costs_array.min())
@@ -356,4 +442,8 @@ diff = y_norm - x_norm
 knee_index = np.argmax(diff)
 knee = full_designs[knee_index]
 print(knee)
-print(capital_cost(knee[2][0]))
+time = time.monotonic() - start
+print(f"Elapsed Simluation Time: {time:.2f}")
+print(len(options))
+
+#validate_model()
